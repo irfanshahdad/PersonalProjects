@@ -5,11 +5,15 @@ A minimalist Next.js app for managing markdown documentation and live React prot
 ## Features
 
 - 📝 **Docs Section**: Write and edit markdown documents with live preview
+  - File-based storage: Docs stored as `.md` files in the `docs/` folder
+  - API endpoints for reading and updating docs
+  - Individual doc pages at `/docs/[id]` with full editing capabilities
+  - localStorage fallback for backwards compatibility
 - ⚙️ **Prototypes Section**: Create live React component routes you can share
-- 🔗 **Shareable URLs**: Each prototype has its own URL (e.g., `/prototypes/button-counter`)
-- 💾 **Local Storage**: Docs persist in browser localStorage
-- 🌗 **Dark Mode**: Toggle between light and dark themes
+- 🔗 **Shareable URLs**: Each prototype has its own URL (e.g., `/prototypes/interview-tracker`)
+- 🌗 **Dark Mode**: Toggle between light and dark themes with persistent preference
 - 🎨 **Minimal UI**: Clean, distraction-free interface
+- 📄 **GitHub Flavored Markdown**: Full GFM support with `react-markdown` and `remark-gfm`
 
 ## Setup Instructions
 
@@ -44,21 +48,35 @@ Make sure you have Node.js installed (version 18 or higher). If not, download it
 ```
 personal-hub/
 ├── app/
+│   ├── api/
+│   │   └── docs/
+│   │       ├── route.ts         # GET all docs from docs/ folder
+│   │       └── [id]/
+│   │           └── route.ts     # GET/PUT individual doc
 │   ├── components/
-│   │   ├── Sidebar.tsx          # Navigation sidebar
-│   │   ├── DocsView.tsx         # Docs section with editor/preview
-│   │   └── PrototypesView.tsx   # Prototypes list view
+│   │   ├── DocsList.tsx         # Docs list view on home page
+│   │   ├── DocsView.tsx         # Full docs editor (legacy/unused)
+│   │   ├── PrototypesList.tsx   # Prototypes list view
+│   │   └── Sidebar.tsx          # Navigation sidebar (legacy/unused)
+│   ├── docs/
+│   │   └── [id]/
+│   │       └── page.tsx         # Individual doc page with editor
 │   ├── prototypes/
 │   │   ├── [id]/
-│   │   │   └── page.tsx         # Dynamic route for each prototype
+│   │   │   ├── page.tsx         # Dynamic route for each prototype
+│   │   │   └── not-found.tsx    # 404 page for prototypes
 │   │   ├── components/          # Your prototype components
 │   │   │   ├── ButtonCounter.tsx
-│   │   │   └── CardDemo.tsx
-│   │   └── layout.tsx
+│   │   │   ├── CardDemo.tsx
+│   │   │   └── InterviewTracker.tsx
+│   │   └── layout.tsx           # Prototypes layout
 │   ├── prototypes-registry.tsx  # Register your prototypes here
 │   ├── layout.tsx               # Root layout
 │   ├── page.tsx                 # Main page component
 │   └── globals.css              # Global styles
+├── docs/                        # Markdown documentation files
+│   ├── welcome.md
+│   └── interview-tracker-app.md
 ├── package.json
 ├── tsconfig.json
 └── tailwind.config.ts
@@ -68,16 +86,34 @@ personal-hub/
 
 ### Docs Section
 
-- Click "📝 Docs" in the sidebar
-- Click "+ New Doc" to create a new document
-- Click on a document to view it
-- Click "Edit" to edit the markdown
-- Changes are auto-saved to localStorage
+**Viewing Docs:**
+- Docs are automatically loaded from the `docs/` folder
+- Click on any document in the Docs section to view it at `/docs/[id]`
+- Each doc has its own dedicated page with full editing capabilities
+
+**Creating/Editing Docs:**
+
+**Option 1: File System (Recommended)**
+- Create a new `.md` file in the `docs/` folder (e.g., `my-doc.md`)
+- The file will automatically appear in the docs list
+- Click on it to view and edit with live preview
+- Changes are saved directly to the file via API
+
+**Option 2: Browser (localStorage)**
+- Click "+ New Doc" on the home page
+- Creates a doc stored in browser localStorage
+- Note: localStorage docs cannot be edited on individual doc pages
+
+**Editing:**
+- Click "Edit" on any file-based doc page
+- Split-screen editor with live markdown preview
+- Click "Save" to persist changes to the file
+- Changes are saved via PUT request to `/api/docs/[id]`
 
 ### Prototypes Section
 
 **Viewing Prototypes:**
-- Click "⚙️ Prototypes" in the sidebar to see all available prototypes
+- All available prototypes are displayed on the home page in the Prototypes section
 - Click on any prototype card to view it at `/prototypes/[id]`
 - Share the URL with colleagues/friends!
 
@@ -112,6 +148,11 @@ personal-hub/
 
 3. **Access it** at `/prototypes/my-prototype`
 
+**Current Prototypes:**
+- `interview-tracker` - A comprehensive interview management app for job seekers
+- `button-counter` - Example counter component
+- `card-demo` - Example card component
+
 ## Sharing Prototypes
 
 Each prototype has its own URL:
@@ -122,13 +163,43 @@ Share these URLs with colleagues and friends to show off your prototypes!
 
 ## Data Storage
 
-- **Docs**: Stored in browser localStorage
-- **Prototypes**: Stored as React components in the codebase
+- **Docs**: 
+  - Primary: Stored as `.md` files in the `docs/` folder (file system)
+  - Fallback: Browser localStorage for backwards compatibility
+  - API endpoints: `/api/docs` (GET all) and `/api/docs/[id]` (GET/PUT individual)
+- **Prototypes**: Stored as React components in the codebase, registered in `prototypes-registry.tsx`
+
+## Tech Stack
+
+- **Framework**: Next.js 15 (App Router)
+- **Language**: TypeScript
+- **Styling**: Tailwind CSS
+- **Markdown**: react-markdown with remark-gfm (GitHub Flavored Markdown)
+- **Runtime**: Node.js 18+
+
+## API Endpoints
+
+### Docs API
+
+- `GET /api/docs` - Retrieve all markdown files from the `docs/` folder
+- `GET /api/docs/[id]` - Retrieve a specific document by ID
+- `PUT /api/docs/[id]` - Update a document's content
+
+All endpoints return JSON with the document structure:
+```json
+{
+  "id": "document-id",
+  "title": "Document Title",
+  "content": "Markdown content...",
+  "filename": "document-id.md"
+}
+```
 
 ## Future Enhancements
 
-- File system integration for docs
+- ✅ File system integration for docs (implemented)
 - GitHub sync
-- Folder organization
+- Folder organization for docs
 - Search functionality
 - Prototype categories/tags
+- Doc creation via API
