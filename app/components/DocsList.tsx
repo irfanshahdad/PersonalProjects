@@ -7,6 +7,7 @@ interface Doc {
   id: string;
   title: string;
   content: string;
+  filename?: string;
 }
 
 interface DocsListProps {
@@ -15,17 +16,44 @@ interface DocsListProps {
 
 export default function DocsList({ darkMode }: DocsListProps) {
   const [docs, setDocs] = useState<Doc[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Load docs from localStorage
-    const savedDocs = localStorage.getItem('docs');
-    if (savedDocs) {
-      const parsedDocs = JSON.parse(savedDocs);
-      setDocs(parsedDocs);
-    }
+    // Load docs from API (files in docs folder) and merge with localStorage docs
+    const loadDocs = async () => {
+      try {
+        const response = await fetch('/api/docs');
+        const data = await response.json();
+        const fileBasedDocs = data.docs || [];
+        
+        // Also load localStorage docs (for backwards compatibility)
+        const savedDocs = localStorage.getItem('docs');
+        const localStorageDocs = savedDocs ? JSON.parse(savedDocs) : [];
+        
+        // Merge: file-based docs first, then localStorage docs (avoid duplicates)
+        const fileBasedIds = new Set(fileBasedDocs.map((d: Doc) => d.id));
+        const uniqueLocalDocs = localStorageDocs.filter((d: Doc) => !fileBasedIds.has(d.id));
+        
+        setDocs([...fileBasedDocs, ...uniqueLocalDocs]);
+      } catch (error) {
+        console.error('Error loading docs:', error);
+        // Fallback to localStorage if API fails
+        const savedDocs = localStorage.getItem('docs');
+        if (savedDocs) {
+          const parsedDocs = JSON.parse(savedDocs);
+          setDocs(parsedDocs);
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    loadDocs();
   }, []);
 
   const createNewDoc = () => {
+    // Note: Creating new docs would require file system write access
+    // For now, we'll use localStorage for new docs
     const newDoc: Doc = {
       id: Date.now().toString(),
       title: `New Doc ${docs.length + 1}`,
@@ -37,9 +65,18 @@ export default function DocsList({ darkMode }: DocsListProps) {
   };
 
   const deleteDoc = (id: string) => {
-    const updatedDocs = docs.filter((doc) => doc.id !== id);
-    setDocs(updatedDocs);
-    localStorage.setItem('docs', JSON.stringify(updatedDocs));
+    // Note: Deleting files would require file system write access
+    // For now, we'll only delete from localStorage if it's a local doc
+    const doc = docs.find(d => d.id === id);
+    if (doc && !doc.filename) {
+      // Only delete localStorage docs, not file-based docs
+      const updatedDocs = docs.filter((doc) => doc.id !== id);
+      setDocs(updatedDocs);
+      localStorage.setItem('docs', JSON.stringify(updatedDocs));
+    } else {
+      // File-based docs can't be deleted from UI (would need API endpoint)
+      alert('File-based documents cannot be deleted from the UI. Please delete the file manually from the docs folder.');
+    }
   };
 
   return (
@@ -64,9 +101,14 @@ export default function DocsList({ darkMode }: DocsListProps) {
 
       {/* Document List */}
       <div className="space-y-2">
-        {docs.length === 0 ? (
+        {loading ? (
           <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-            <p>No documents yet.</p>
+            <p>Loading documents...</p>
+          </div>
+        ) : docs.length === 0 ? (
+          <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+            <p>No documents found in the docs folder.</p>
+            <p className="text-sm mt-2">Add .md files to the docs/ folder to see them here.</p>
           </div>
         ) : (
           docs.map((doc) => (
@@ -76,17 +118,19 @@ export default function DocsList({ darkMode }: DocsListProps) {
             >
               <Link
                 href={`/docs/${doc.id}`}
-                className="text-blue-600 dark:text-blue-400 hover:underline font-medium"
+                className="text-blue-600 dark:text-blue-400 hover:underline font-medium flex-1"
               >
-                {doc.title.toLowerCase()}
+                {doc.title}
               </Link>
-              <button
-                onClick={() => deleteDoc(doc.id)}
-                className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
-                aria-label="Delete document"
-              >
-                ×
-              </button>
+              {!doc.filename && (
+                <button
+                  onClick={() => deleteDoc(doc.id)}
+                  className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 ml-2"
+                  aria-label="Delete document"
+                >
+                  ×
+                </button>
+              )}
             </div>
           ))
         )}
